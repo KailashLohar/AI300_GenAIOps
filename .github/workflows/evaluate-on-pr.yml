@@ -1,5 +1,3 @@
-
-
 name: Evaluate Prompt Changes
 on:
   pull_request:
@@ -18,29 +16,26 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
       - name: Install dependencies
         run: pip install -r evaluation/requirements.txt
-
       - name: Azure login (federated, passwordless)
         uses: azure/login@v2
         with:
           client-id:       ${{ vars.AZURE_CLIENT_ID }}
           tenant-id:       ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-
       - name: Run evaluation
         env:
           FOUNDRY_PROJECT_ENDPOINT: ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
           MODEL_DEPLOYMENT:         ${{ vars.MODEL_DEPLOYMENT }}
         run: |
-          python evaluation/run_evaluation.py             --test-data evaluation/test_dataset_with_responses.jsonl             --output results.json
-
+          python evaluation/run_evaluation.py \
+            --test-data evaluation/test_dataset_with_responses.jsonl \
+            --output results.json
       - name: Post results to PR
         if: always()
         uses: actions/github-script@v7
@@ -52,17 +47,10 @@ jobs:
             const t = r.thresholds;
             const lines = Object.keys(m).map(k => `- ${k}: ${m[k]} (threshold >= ${t[k]}) ${m[k] >= t[k] ? 'PASSED' : 'FAILED'}`);
             const status = r.passed ? 'PASSED' : 'FAILED';
-            const body = `## Evaluation Results
-**Status:** ${status}
-**Total examples:** ${r.total_examples}
-
-**Metrics:**
-${lines.join('
-')}`;
+            const body = `## Evaluation Results\n**Status:** ${status}\n**Total examples:** ${r.total_examples}\n\n**Metrics:**\n${lines.join('\n')}`;
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: body
             });
-
