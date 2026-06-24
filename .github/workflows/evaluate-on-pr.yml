@@ -1,5 +1,6 @@
-name: Evaluate Prompt Changes
 
+
+name: Evaluate Prompt Changes
 on:
   pull_request:
     branches: [main]
@@ -7,12 +8,10 @@ on:
       - 'src/agents/**/prompts/**'
       - 'evaluation/**'
   workflow_dispatch:
-
 permissions:
-  id-token: write       # For Azure federated credential auth
+  id-token: write
   contents: read
-  pull-requests: write  # For posting PR comments
-
+  pull-requests: write
 jobs:
   run-evaluation:
     runs-on: ubuntu-latest
@@ -40,9 +39,7 @@ jobs:
           FOUNDRY_PROJECT_ENDPOINT: ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
           MODEL_DEPLOYMENT:         ${{ vars.MODEL_DEPLOYMENT }}
         run: |
-          python evaluation/run_evaluation.py \
-            --test-data evaluation/test_dataset_with_responses.jsonl \
-            --output results.json
+          python evaluation/run_evaluation.py             --test-data evaluation/test_dataset_with_responses.jsonl             --output results.json
 
       - name: Post results to PR
         if: always()
@@ -53,15 +50,19 @@ jobs:
             const r = JSON.parse(fs.readFileSync('results.json', 'utf8'));
             const m = r.metrics;
             const t = r.thresholds;
-            const fmt = (k) => `- ${k}: ${m[k]} (threshold ≥ ${t[k]}) ${m[k] >= t[k] ? '✅' : '❌'}`;
-            const body = `## 🧪 Evaluation Results
-
-**Status:** ${r.passed ? '✅ PASSED' : '❌ FAILED'}
-**Total examples:** ${r.total_examples}
-
-**Metrics:**
-${Object.keys(m).map(fmt).join('\n')}
-`;
+            const fmt = (k) => `- ${k}: ${m[k]} (threshold >= ${t[k]}) ${m[k] >= t[k] ? 'PASSED' : 'FAILED'}`;
+            const status = r.passed ? 'PASSED' : 'FAILED';
+            const body = [
+              '## Evaluation Results',
+              '',
+              `**Status:** ${status}`,
+              `**Total examples:** ${r.total_examples}`,
+              '',
+              '**Metrics:**',
+              Object.keys(m).map(fmt).join('
+')
+            ].join('
+');
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
