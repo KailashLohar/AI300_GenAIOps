@@ -50,22 +50,19 @@ jobs:
             const r = JSON.parse(fs.readFileSync('results.json', 'utf8'));
             const m = r.metrics;
             const t = r.thresholds;
-            const fmt = (k) => `- ${k}: ${m[k]} (threshold >= ${t[k]}) ${m[k] >= t[k] ? 'PASSED' : 'FAILED'}`;
+            const lines = Object.keys(m).map(k => `- ${k}: ${m[k]} (threshold >= ${t[k]}) ${m[k] >= t[k] ? 'PASSED' : 'FAILED'}`);
             const status = r.passed ? 'PASSED' : 'FAILED';
-            const body = [
-              '## Evaluation Results',
-              '',
-              `**Status:** ${status}`,
-              `**Total examples:** ${r.total_examples}`,
-              '',
-              '**Metrics:**',
-              Object.keys(m).map(fmt).join('
-')
-            ].join('
-');
+            const body = `## Evaluation Results
+**Status:** ${status}
+**Total examples:** ${r.total_examples}
+
+**Metrics:**
+${lines.join('
+')}`;
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body
+              body: body
             });
+
