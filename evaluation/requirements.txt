@@ -1,0 +1,4 @@
+azure-ai-evaluation
+azure-ai-projects
+azure-ai-inference
+azure-identity

@@ -1,0 +1,66 @@
+name: Evaluate Prompt Changes
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/agents/**/prompts/**'
+      - 'evaluation/**'
+  workflow_dispatch:
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+jobs:
+  run-evaluation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install -r evaluation/requirements.txt
+      - name: Azure login (federated, passwordless)
+        uses: azure/login@v2
+        with:
+          client-id:       ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Run evaluation
+        id: run_eval
+        continue-on-error: true
+        env:
+          FOUNDRY_PROJECT_ENDPOINT: ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
+          MODEL_DEPLOYMENT:         ${{ vars.MODEL_DEPLOYMENT }}
+          AZURE_SUBSCRIPTION_ID:    ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          AZURE_RESOURCE_GROUP:     ${{ vars.AZURE_RESOURCE_GROUP }}
+          AZURE_PROJECT_NAME:       ${{ vars.AZURE_PROJECT_NAME }}
+        run: |
+          python evaluation/run_evaluation.py \
+            --test-data evaluation/test_dataset_with_responses.jsonl \
+            --output results.json
+      - name: Fallback results if evaluation failed
+        if: steps.run_eval.outcome == 'failure'
+        run: |
+          echo '{"metrics":{},"thresholds":{},"passed":false,"total_examples":0,"error":"Evaluation script failed. Check logs."}' > results.json
+      - name: Post results to PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const r = JSON.parse(fs.readFileSync('results.json', 'utf8'));
+            const m = r.metrics || {};
+            const t = r.thresholds || {};
+            const lines = Object.keys(m).map(k => `- ${k}: ${m[k]} (threshold >= ${t[k]}) ${m[k] >= t[k] ? 'PASSED' : 'FAILED'}`);
+            const status = r.passed ? 'PASSED' : 'FAILED';
+            const error = r.error ? `\n\n**Error:** ${r.error}` : '';
+            const body = `## Evaluation Results\n**Status:** ${status}\n**Total examples:** ${r.total_examples}${error}\n\n**Metrics:**\n${lines.join('\n') || 'No metrics available'}`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });

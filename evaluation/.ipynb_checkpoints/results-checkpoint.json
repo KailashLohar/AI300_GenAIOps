@@ -1,0 +1,15 @@
+{
+  "metrics": {
+    "relevance": 4.4,
+    "coherence": 4.2,
+    "fluency": 4.0
+  },
+  "thresholds": {
+    "relevance": 4.0,
+    "coherence": 4.0,
+    "fluency": 4.0,
+    "groundedness": 4.0
+  },
+  "passed": true,
+  "total_examples": 10
+}
