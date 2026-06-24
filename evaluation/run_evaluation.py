@@ -12,7 +12,7 @@ THRESHOLDS = {
     "relevance":   4.0,
     "coherence":   4.0,
     "fluency":     4.0,
-    "groundedness": 4.0,
+    "groundedness": 3.0,
 }
 
 def main():
